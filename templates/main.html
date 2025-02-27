@@ -35,10 +35,26 @@
         
         <div class="sidebar">
             <h2>이미지 목록</h2>
+            
+            <!-- 진행 상황 정보 추가 -->
+            <div class="progress-container">
+                <h3>라벨링 진행 상황</h3>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: {{ progress_percent }}%;"></div>
+                </div>
+                <div class="progress-info">
+                    <span>{{ labeled_count }}/{{ total_images }}</span>
+                    <span>{{ "%.1f"|format(progress_percent) }}%</span>
+                </div>
+            </div>
+            
             <div class="image-list">
                 {% for img in image_list %}
                 <a href="{{ url_for('select_image', idx=loop.index0) }}" class="image-item {% if loop.index0 == current_idx %}active{% endif %}">
                     {{ img }}
+                    {% if img in bboxes_status and bboxes_status[img] %}
+                    <span class="labeled-marker">✓</span>
+                    {% endif %}
                 </a>
                 {% endfor %}
             </div>
@@ -358,6 +374,16 @@
         
         // 디버깅 정보
         console.log("스크립트 로드 완료");
+        
+        // JSON 형식의 라벨링 상태를 파싱
+        const bboxesStatus = {};
+        {% for img in image_list %}
+            {% if img in app_state.bboxes and app_state.bboxes[img]|length > 0 %}
+                bboxesStatus["{{ img }}"] = true;
+            {% else %}
+                bboxesStatus["{{ img }}"] = false;
+            {% endif %}
+        {% endfor %}
     </script>
 </body>
 </html> 

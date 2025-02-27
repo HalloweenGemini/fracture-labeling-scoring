@@ -102,11 +102,21 @@ def main_app():
     
     current_bboxes = app_state.bboxes.get(current_image, [])
     
+    # 모든 이미지의 라벨 상태 확인
+    bboxes_status = {}
+    for img_name in image_names:
+        label_name = os.path.splitext(img_name)[0] + '.txt'
+        label_path = os.path.join(get_labels_path(app_state.selected_id), label_name)
+        bboxes_status[img_name] = os.path.exists(label_path) and os.path.getsize(label_path) > 0
+    
     # 경과 시간 계산
     elapsed_time = int(time.time() - app_state.start_time)
     minutes = elapsed_time // 60
     seconds = elapsed_time % 60
     timer = f"{minutes:02d}:{seconds:02d}"
+    
+    # 라벨링 진행 상황 계산
+    labeled_count, total_images, progress_percent = get_labeling_progress(app_state.selected_id)
     
     return render_template(
         'main.html', 
@@ -116,7 +126,12 @@ def main_app():
         image_list=image_names,
         current_idx=app_state.current_image_idx,
         bboxes=json.dumps(current_bboxes),
-        timer=timer
+        timer=timer,
+        labeled_count=labeled_count,
+        total_images=total_images,
+        progress_percent=progress_percent,
+        bboxes_status=bboxes_status,
+        app_state=app_state  # 라벨 상태를 위해 app_state 전달
     )
 
 @app.route('/next_image')
@@ -244,6 +259,33 @@ def delete_all_bboxes():
             return jsonify({'status': 'error', 'message': str(e)})
     
     return jsonify({'status': 'success'})
+
+def get_labeling_progress(user_id):
+    """사용자 ID에 대한 라벨링 진행 상황 계산"""
+    # 전체 이미지 목록
+    image_files = sorted(glob.glob(os.path.join(images_path, "*.png")))
+    total_images = len(image_files)
+    
+    if total_images == 0:
+        return 0, 0, 0  # 이미지가 없는 경우
+    
+    # 라벨이 있는 이미지 수 계산
+    labels_path = get_labels_path(user_id)
+    labeled_count = 0
+    
+    for img_file in image_files:
+        img_name = os.path.basename(img_file)
+        label_name = os.path.splitext(img_name)[0] + '.txt'
+        label_path = os.path.join(labels_path, label_name)
+        
+        # 라벨 파일이 존재하고 내용이 있는지 확인
+        if os.path.exists(label_path) and os.path.getsize(label_path) > 0:
+            labeled_count += 1
+    
+    # 진행률 계산
+    progress_percent = (labeled_count / total_images) * 100
+    
+    return labeled_count, total_images, progress_percent
 
 if __name__ == '__main__':
     # 기본 폴더 생성

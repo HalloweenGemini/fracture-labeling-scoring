@@ -1,0 +1,21 @@
+$content = @"
+# 데이터 폴더 제외
+Pilot_wrist_0615/
+
+# 이미지 폴더 제외
+static/images/
+
+# 파이썬 캐시 파일 제외
+__pycache__/
+*.py[cod]
+*`$py.class
+
+# 환경 설정 파일 제외
+.env
+.venv
+env/
+venv/
+ENV/
+"@
+
+Set-Content -Path ".gitignore" -Value $content
