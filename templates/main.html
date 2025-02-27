@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>X-ray 골절 표시 - ID {{ user_id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- 캐시 무시를 위한 버전 추가 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+</head>
+<body>
+    <div class="header">
+        <h1>ID {{ user_id }} - X-ray 골절 표시</h1>
+        <div id="timer" class="timer">{{ timer }}</div>
+    </div>
+    
+    <div class="main-container">
+        <div class="main-content">
+            <h2>이미지: {{ image_name }}</h2>
+            
+            <div class="image-container">
+                <canvas id="imageCanvas"></canvas>
+            </div>
+            
+            <div class="controls">
+                <h3>바운딩 박스 작업</h3>
+                <div class="bbox-controls">
+                    <button id="cancelDrawing">취소</button>
+                    <button id="deleteLastBbox">이전 삭제</button>
+                    <button id="deleteAllBboxes">전체 삭제</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <h2>이미지 목록</h2>
+            <div class="image-list">
+                {% for img in image_list %}
+                <a href="{{ url_for('select_image', idx=loop.index0) }}" class="image-item {% if loop.index0 == current_idx %}active{% endif %}">
+                    {{ img }}
+                </a>
+                {% endfor %}
+            </div>
+            
+            <div class="navigation-buttons">
+                <a href="{{ url_for('prev_image') }}" class="nav-btn" id="prevBtn">이전</a>
+                <a href="{{ url_for('next_image') }}" class="nav-btn" id="nextBtn">다음</a>
+            </div>
+            
+            <h3 class="sidebar-section-title">골절 타입 선택</h3>
+            <div class="fracture-buttons-sidebar">
+                <button id="ambiguous" class="fracture-btn" data-class="0">Ambiguous fracture</button>
+                <button id="simple" class="fracture-btn" data-class="1">Simple fracture</button>
+                <button id="comminuted" class="fracture-btn" data-class="2">Comminuted fracture</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 이미지 정보와 바운딩 박스 데이터
+        const imagePath = "{{ url_for('static', filename=image_path) }}";
+        const imageName = "{{ image_name }}";
+        let bboxes = JSON.parse('{{ bboxes|safe }}');
+        
+        // 색상 맵
+        const colorMap = {
+            0: 'green',  // Ambiguous fracture
+            1: 'blue',   // Simple fracture
+            2: 'red'     // Comminuted fracture
+        };
+        
+        // 캔버스 및 컨텍스트
+        const canvas = document.getElementById('imageCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 이미지 객체
+        const img = new Image();
+        img.src = imagePath + '?v=' + new Date().getTime(); // 캐시 방지
+        
+        // 드로잉 상태 변수
+        let isDrawing = false;
+        let startX = 0;
+        let startY = 0;
+        let currentBbox = null;
+        
+        // 이미지 로드 시 캔버스 설정
+        img.onload = function() {
+            console.log("이미지 로드됨, 크기:", img.width, "x", img.height);
+            canvas.width = img.width;
+            canvas.height = img.height;
+            redrawCanvas();
+        };
+        
+        // 캔버스 다시 그리기
+        function redrawCanvas() {
+            console.log("캔버스 다시 그리기");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            
+            // 저장된 바운딩 박스 그리기
+            bboxes.forEach(bbox => {
+                const [x, y, width, height, classId] = bbox;
+                ctx.strokeStyle = colorMap[classId];
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x, y, width, height);
+            });
+            
+            // 현재 그리고 있는 바운딩 박스
+            if (currentBbox !== null) {
+                console.log("현재 박스:", currentBbox);
+                const [x, y, width, height] = currentBbox;
+                ctx.strokeStyle = 'yellow';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x, y, width, height);
+            }
+        }
+        
+        // 마우스 이벤트 - 드래그 시작
+        canvas.addEventListener('mousedown', function(e) {
+            console.log("마우스 다운 이벤트");
+            const rect = canvas.getBoundingClientRect();
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+            
+            // 새 바운딩 박스 시작
+            currentBbox = [startX, startY, 0, 0];
+            isDrawing = true;
+            
+            // 디버깅 출력
+            console.log("시작 좌표:", startX, startY);
+            
+            // 기본 동작 방지
+            e.preventDefault();
+        });
+        
+        // 마우스 이벤트 - 드래그 중
+        canvas.addEventListener('mousemove', function(e) {
+            if (!isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // 너비와 높이 업데이트 (드래그 중)
+            let width = mouseX - startX;
+            let height = mouseY - startY;
+            
+            // 현재 드래그하는 동안에는 시작점 고정, 너비/높이만 변경
+            currentBbox = [startX, startY, width, height];
+            
+            // 디버깅 출력
+            console.log("드래그 중:", width, height);
+            
+            // 캔버스 다시 그리기
+            redrawCanvas();
+            
+            // 기본 동작 방지
+            e.preventDefault();
+        });
+        
+        // 마우스 이벤트 - 드래그 종료
+        canvas.addEventListener('mouseup', function(e) {
+            if (!isDrawing) return;
+            
+            console.log("마우스 업 이벤트");
+            
+            // 드래그 상태 종료
+            isDrawing = false;
+            
+            // 최종 바운딩 박스 계산
+            let [x, y, width, height] = currentBbox;
+            
+            // 음수 너비/높이 처리
+            if (width < 0) {
+                x = startX + width;
+                width = Math.abs(width);
+            }
+            
+            if (height < 0) {
+                y = startY + height;
+                height = Math.abs(height);
+            }
+            
+            // 최종 바운딩 박스 업데이트
+            currentBbox = [x, y, width, height];
+            
+            // 너무 작은 박스는 무시
+            if (width < 5 || height < 5) {
+                console.log("박스가 너무 작아 무시됨");
+                currentBbox = null;
+                redrawCanvas();
+                return;
+            }
+            
+            // 디버깅 출력
+            console.log("최종 박스:", currentBbox);
+            
+            // 골절 타입 버튼 활성화
+            $('.fracture-btn').prop('disabled', false);
+            
+            // 캔버스 다시 그리기
+            redrawCanvas();
+            
+            // 기본 동작 방지
+            e.preventDefault();
+        });
+        
+        // 마우스가 캔버스를 벗어날 경우
+        canvas.addEventListener('mouseleave', function(e) {
+            if (isDrawing) {
+                console.log("마우스가 캔버스를 벗어남");
+                // 드래깅 중에 캔버스를 벗어나면 드래그 종료
+                isDrawing = false;
+                
+                // 최종 바운딩 박스 계산
+                let [x, y, width, height] = currentBbox;
+                
+                // 음수 너비/높이 처리
+                if (width < 0) {
+                    x = startX + width;
+                    width = Math.abs(width);
+                }
+                
+                if (height < 0) {
+                    y = startY + height;
+                    height = Math.abs(height);
+                }
+                
+                currentBbox = [x, y, width, height];
+                
+                // 너무 작은 박스는 무시
+                if (width < 5 || height < 5) {
+                    currentBbox = null;
+                }
+                
+                redrawCanvas();
+            }
+        });
+        
+        // 취소 버튼
+        $('#cancelDrawing').click(function() {
+            console.log("취소 버튼 클릭");
+            isDrawing = false;
+            currentBbox = null;
+            $('.fracture-btn').prop('disabled', false);
+            redrawCanvas();
+        });
+        
+        // 이전 바운딩 박스 삭제 버튼
+        $('#deleteLastBbox').click(function() {
+            console.log("이전 바운딩 박스 삭제 버튼 클릭");
+            if (bboxes.length > 0) {
+                // 서버에 삭제 요청
+                $.ajax({
+                    url: '/delete_last_bbox',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        image_name: imageName
+                    }),
+                    success: function(response) {
+                        console.log("마지막 바운딩 박스 삭제 성공");
+                        // 로컬 데이터에서 마지막 바운딩 박스 제거
+                        bboxes.pop();
+                        redrawCanvas();
+                    },
+                    error: function(err) {
+                        console.error("삭제 실패:", err);
+                        alert("바운딩 박스 삭제에 실패했습니다.");
+                    }
+                });
+            } else {
+                alert("삭제할 바운딩 박스가 없습니다.");
+            }
+        });
+        
+        // 모든 바운딩 박스 삭제 버튼
+        $('#deleteAllBboxes').click(function() {
+            console.log("모든 바운딩 박스 삭제 버튼 클릭");
+            if (bboxes.length > 0) {
+                if (confirm("현재 이미지의 모든 바운딩 박스를 삭제하시겠습니까?")) {
+                    // 서버에 삭제 요청
+                    $.ajax({
+                        url: '/delete_all_bboxes',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            image_name: imageName
+                        }),
+                        success: function(response) {
+                            console.log("모든 바운딩 박스 삭제 성공");
+                            // 로컬 데이터에서 모든 바운딩 박스 제거
+                            bboxes = [];
+                            redrawCanvas();
+                        },
+                        error: function(err) {
+                            console.error("삭제 실패:", err);
+                            alert("바운딩 박스 삭제에 실패했습니다.");
+                        }
+                    });
+                }
+            } else {
+                alert("삭제할 바운딩 박스가 없습니다.");
+            }
+        });
+        
+        // 골절 유형 버튼 클릭 이벤트
+        $('.fracture-btn').click(function() {
+            if (!currentBbox || currentBbox[2] === 0 || currentBbox[3] === 0) {
+                alert('먼저 바운딩 박스를 그려주세요.');
+                return;
+            }
+            
+            const classId = parseInt($(this).data('class'));
+            console.log("골절 유형 선택:", classId);
+            
+            // 바운딩 박스 정보와 클래스 ID 저장
+            const bbox = [...currentBbox, classId];
+            
+            // 서버에 저장 요청
+            $.ajax({
+                url: '/save_bbox',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    image_name: imageName,
+                    bbox: bbox
+                }),
+                success: function(response) {
+                    console.log("바운딩 박스 저장 성공");
+                    // 로컬 데이터 업데이트
+                    bboxes.push(bbox);
+                    
+                    // 상태 초기화
+                    currentBbox = null;
+                    
+                    // 캔버스 다시 그리기
+                    redrawCanvas();
+                },
+                error: function(err) {
+                    console.error("저장 실패:", err);
+                    alert("바운딩 박스 저장에 실패했습니다.");
+                }
+            });
+        });
+        
+        // 타이머 업데이트
+        setInterval(function() {
+            $.ajax({
+                url: '/get_timer',
+                type: 'GET',
+                success: function(response) {
+                    $('#timer').text(response.timer);
+                }
+            });
+        }, 1000);
+        
+        // 디버깅 정보
+        console.log("스크립트 로드 완료");
+    </script>
+</body>
+</html> 

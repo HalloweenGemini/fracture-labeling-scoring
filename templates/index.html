@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>X-ray 골절 표시 애플리케이션</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>X-ray 골절 표시 애플리케이션</h1>
+        <h2>ID를 선택하세요:</h2>
+        
+        <div class="id-buttons">
+            <a href="{{ url_for('select_id', id=1) }}" class="id-button">ID 1</a>
+            <a href="{{ url_for('select_id', id=2) }}" class="id-button">ID 2</a>
+            <a href="{{ url_for('select_id', id=3) }}" class="id-button">ID 3</a>
+            <a href="{{ url_for('select_id', id=4) }}" class="id-button">ID 4</a>
+            <a href="{{ url_for('select_id', id=5) }}" class="id-button">ID 5</a>
+            <a href="{{ url_for('select_id', id=6) }}" class="id-button">ID 6</a>
+        </div>
+    </div>
+</body>
+</html> 
