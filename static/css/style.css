@@ -4,11 +4,41 @@
     padding: 0;
 }
 
+/* CSS 변수 정의 */
+:root {
+    --primary: #007bff;
+    --primary-light: #7e57c2;
+    --primary-dark: #4527a0;
+    --secondary: #6c757d;
+    --success: #28a745;
+    --danger: #dc3545;
+    --warning: #ffc107;
+    --info: #17a2b8;
+    --light: #f5f7fa;
+    --dark: #343a40;
+    --gray-100: #f8f9fa;
+    --gray-200: #e9ecef;
+    --gray-300: #dee2e6;
+    --gray-400: #ced4da;
+    --gray-500: #adb5bd;
+    --gray-600: #6c757d;
+    --gray-700: #495057;
+    --gray-800: #343a40;
+    --gray-900: #212529;
+    --border-radius: 4px;
+    --box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    --transition: all 0.2s ease-in-out;
+}
+
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     line-height: 1.6;
-    padding: 20px;
-    background-color: #f5f5f5;
+    padding: 0;
+    margin: 0;
+    background-color: var(--light);
+    color: var(--gray-800);
+    height: 100vh;
+    overflow: hidden;
 }
 
 .container {
@@ -30,130 +60,195 @@ body {
 }
 
 .timer {
-    font-size: 24px;
-    font-weight: bold;
-    padding: 10px;
-    background-color: #f0f0f0;
-    border-radius: 5px;
+    background: white;
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary);
+    text-align: center;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .main-container {
     display: flex;
-    gap: 20px;
-}
-
-.main-content {
-    flex: 4;
-    background-color: white;
-    padding: 20px;
-    border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    height: 100vh;
+    overflow: hidden;
 }
 
 .sidebar {
-    flex: 1;
+    width: 300px;
     background-color: white;
-    padding: 20px;
-    border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-left: 1px solid var(--gray-200);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
+    font-size: 0.75rem;
+}
+
+.main-content {
+    flex: 1;
+    padding: 2rem;
+    margin-right: 300px;
+    margin-left: 0;
+    overflow-y: auto;
+    background-color: var(--gray-100);
+    min-height: 100vh;
 }
 
 .image-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px;
+    padding: 20px;
     width: 100%;
-    margin: 20px 0;
-    text-align: center;
 }
 
 canvas {
     max-width: 100%;
-    border: 1px solid #ddd;
-    cursor: crosshair;
+    height: auto;
+    object-fit: contain;
+}
+
+#imageCanvas {
+    align-self: center;
+    margin-bottom: 20px;
 }
 
 .controls {
     margin-top: 20px;
 }
 
-.fracture-buttons, .bbox-controls {
+.fracture-buttons {
     display: flex;
-    gap: 10px;
-    margin: 10px 0 20px;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    padding: 0.75rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    position: relative;
+    z-index: 1000;
 }
 
 .fracture-btn {
-    padding: 10px 15px;
-    border: none;
-    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    border: 2px solid;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    text-align: left;
+    font-size: 0.8rem;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background-color: white;
 }
 
 #ambiguous {
-    background-color: #90EE90;
+    border-color: #2e7d32;
+    color: #2e7d32;
+    background-color: #e8f5e9;
 }
 
 #simple {
-    background-color: #ADD8E6;
+    border-color: #1565c0;
+    color: #1565c0;
+    background-color: #e3f2fd;
 }
 
 #comminuted {
-    background-color: #FFCCCB;
+    border-color: #c62828;
+    color: #c62828;
+    background-color: #ffebee;
 }
 
-button {
-    padding: 8px 15px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+#noFracture {
+    border-color: #757575;
+    color: #757575;
+    background-color: #f5f5f5;
 }
 
-button:hover {
-    opacity: 0.8;
-}
-
-button:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
+.fracture-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    filter: brightness(0.95);
 }
 
 .image-list {
-    max-height: 400px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1rem;
+    max-height: 150px;
     overflow-y: auto;
-    margin-bottom: 20px;
 }
 
 .image-item {
-    display: block;
-    padding: 8px;
-    margin: 5px 0;
-    background-color: #f9f9f9;
-    border-radius: 4px;
-    text-decoration: none;
-    color: #333;
+    padding: 0.5rem 0.75rem;
+    margin: 0;
+    border-bottom: 1px solid var(--gray-200);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    color: var(--gray-700);
 }
 
-.image-item:hover {
-    background-color: #f0f0f0;
+.image-item:last-child {
+    border-bottom: none;
 }
 
 .image-item.active {
-    background-color: #e0e0e0;
-    font-weight: bold;
+    background-color: var(--primary);
+    color: white;
+}
+
+.image-item:hover:not(.active) {
+    background-color: var(--gray-100);
 }
 
 .navigation-buttons {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.instruction-text {
+    font-size: 0.9rem;
+    color: var(--gray-600);
+    background: var(--gray-100);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    text-align: center;
+    flex-grow: 1;
+    margin: 0 1rem;
 }
 
 .nav-btn {
     padding: 8px 15px;
-    background-color: #2196F3;
+    background-color: var(--primary);
     color: white;
     text-decoration: none;
     border-radius: 4px;
     text-align: center;
+    min-width: 80px;
 }
 
 .nav-btn:hover {
@@ -206,37 +301,64 @@ h1, h2, h3 {
 }
 
 .bbox-controls {
-    display: flex;
-    gap: 10px;
-    margin: 10px 0 20px;
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid var(--gray-200);
 }
 
 .bbox-controls button {
-    flex: 1;
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: none;
+    border-radius: 6px;
+    background-color: white;
+    color: var(--gray-700);
+    border: 1px solid var(--gray-300);
+    transition: all 0.2s ease;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bbox-controls button:hover {
+    background-color: var(--gray-100);
+    transform: translateY(-1px);
+}
+
+.bbox-controls button.delete-last {
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+.bbox-controls button.delete-all {
+    color: white;
+    background-color: var(--danger);
+    border-color: var(--danger);
 }
 
 /* Progress Bar 스타일 */
 .progress-container {
-    margin: 15px 0 20px;
-    padding: 10px;
-    background-color: #f9f9f9;
-    border-radius: 5px;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1rem;
 }
 
 .progress-bar-container {
-    width: 100%;
-    height: 15px;
-    background-color: #e0e0e0;
-    border-radius: 10px;
+    height: 8px;
+    background-color: var(--gray-200);
+    border-radius: 4px;
     overflow: hidden;
-    margin: 10px 0;
+    margin: 1rem 0;
 }
 
 .progress-bar {
     height: 100%;
-    background-color: #4CAF50;
-    border-radius: 10px;
-    transition: width 0.3s ease;
+    background-color: var(--primary);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .progress-info {
@@ -250,4 +372,91 @@ h1, h2, h3 {
     margin-left: 5px;
     color: #4CAF50;
     font-weight: bold;
+}
+
+.debug-info {
+    display: none;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 10px;
+    border-radius: 4px;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 12px;
+    font-family: monospace;
+    z-index: 1000;
+}
+
+.debug-info p {
+    margin: 5px 0;
+    white-space: nowrap;
+}
+
+h3 {
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+function updateCanvasScale() {
+    const container = canvas.parentElement;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    
+    // 이미지의 원래 크기
+    const imgWidth = img.width;
+    const imgHeight = img.height;
+    
+    // 컨테이너에 맞는 크기 계산
+    let newWidth = imgWidth;
+    let newHeight = imgHeight;
+    
+    if (scale === 2) {
+        // 확대 시 이미지 width를 컨테이너 width에 맞춤
+        newWidth = containerWidth;
+        newHeight = (containerWidth * imgHeight) / imgWidth;
+    } else {
+        // 축소 상태일 때 컨테이너에 맞게 조정
+        const containerRatio = containerWidth / containerHeight;
+        const imageRatio = imgWidth / imgHeight;
+        
+        if (imageRatio > containerRatio) {
+            newWidth = containerWidth - 40;
+            newHeight = (containerWidth - 40) / imageRatio;
+        } else {
+            newHeight = containerHeight - 40;
+            newWidth = (containerHeight - 40) * imageRatio;
+        }
+    }
+    
+    // 캔버스 크기 업데이트
+    canvas.style.width = newWidth + 'px';
+    canvas.style.height = newHeight + 'px';
+    
+    // 스케일 비율 업데이트
+    updateScaleRatio();
+    updateDebugInfo();
+    redrawCanvas();
+}
+
+.sidebar-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0.5rem 0;
+    padding: 0.75rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-nav .nav-btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    min-width: 60px;
+}
+
+.sidebar-nav span {
+    font-size: 0.75rem;
+    color: var(--gray-700);
 } 

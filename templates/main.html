@@ -8,67 +8,108 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <style>
+        .image-container {
+            min-height: 500px;
+            position: relative;
+            border: 1px solid #ddd;
+            background-color: #f8f8f8;
+            padding: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #imageCanvas {
+            background-color: transparent;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: all;
+            border: 1px solid #ccc;
+        }
+        .debug-info {
+            margin-top: 10px;
+            text-align: left;
+            font-size: 12px;
+            color: #666;
+            padding: 5px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+        }
+    </style>
 </head>
 <body>
     <div class="header">
         <h1>ID {{ user_id }} - X-ray 골절 표시</h1>
-        <div id="timer" class="timer">{{ timer }}</div>
     </div>
     
     <div class="main-container">
-        <div class="main-content">
-            <h2>이미지: {{ image_name }}</h2>
-            
-            <div class="image-container">
-                <canvas id="imageCanvas"></canvas>
-            </div>
-            
-            <div class="controls">
-                <h3>바운딩 박스 작업</h3>
-                <div class="bbox-controls">
-                    <button id="cancelDrawing">취소</button>
-                    <button id="deleteLastBbox">이전 삭제</button>
-                    <button id="deleteAllBboxes">전체 삭제</button>
-                </div>
-            </div>
-        </div>
-        
         <div class="sidebar">
-            <h2>이미지 목록</h2>
-            
-            <!-- 진행 상황 정보 추가 -->
             <div class="progress-container">
                 <h3>라벨링 진행 상황</h3>
                 <div class="progress-bar-container">
-                    <div class="progress-bar" style="width: {{ progress_percent }}%;"></div>
+                    <div class="progress-bar" style="width: {{ progress_percent }}%"></div>
                 </div>
                 <div class="progress-info">
                     <span>{{ labeled_count }}/{{ total_images }}</span>
                     <span>{{ "%.1f"|format(progress_percent) }}%</span>
                 </div>
             </div>
-            
+
+            <div class="sidebar-nav">
+                <a href="/prev_image" class="nav-btn">이전</a>
+                <span>{{ current_idx + 1 }} / {{ image_list|length }}</span>
+                <a href="/next_image" class="nav-btn">다음</a>
+            </div>
+
+            <div class="fracture-buttons">
+                <button id="noFracture" class="fracture-btn no-fracture" data-class="none">No Fracture</button>
+                <button id="ambiguous" class="fracture-btn" data-class="0">Ambiguous Fracture</button>
+                <button id="simple" class="fracture-btn" data-class="1">Simple Fracture</button>
+                <button id="comminuted" class="fracture-btn" data-class="2">Comminuted Fracture</button>
+            </div>
+
+            <h3>이미지 목록</h3>
             <div class="image-list">
                 {% for img in image_list %}
-                <a href="{{ url_for('select_image', idx=loop.index0) }}" class="image-item {% if loop.index0 == current_idx %}active{% endif %}">
+                <div class="image-item {% if loop.index0 == current_idx %}active{% endif %}" 
+                     onclick="window.location.href='/select_image/{{ loop.index0 }}'">
                     {{ img }}
-                    {% if img in bboxes_status and bboxes_status[img] %}
+                    {% if bboxes_status[img] %}
                     <span class="labeled-marker">✓</span>
                     {% endif %}
-                </a>
+                </div>
                 {% endfor %}
             </div>
-            
-            <div class="navigation-buttons">
-                <a href="{{ url_for('prev_image') }}" class="nav-btn" id="prevBtn">이전</a>
-                <a href="{{ url_for('next_image') }}" class="nav-btn" id="nextBtn">다음</a>
+
+            <!-- 삭제 버튼들을 사이드바로 이동 -->
+            <div class="bbox-controls">
+                <button id="deleteLastBbox" onclick="deleteLastBBox()" class="delete-last">
+                    마지막 바운딩 박스 삭제
+                </button>
+                <button id="deleteAllBboxes" onclick="deleteAllBBoxes()" class="delete-all">
+                    모든 바운딩 박스 삭제
+                </button>
             </div>
-            
-            <h3 class="sidebar-section-title">골절 타입 선택</h3>
-            <div class="fracture-buttons-sidebar">
-                <button id="ambiguous" class="fracture-btn" data-class="0">Ambiguous fracture</button>
-                <button id="simple" class="fracture-btn" data-class="1">Simple fracture</button>
-                <button id="comminuted" class="fracture-btn" data-class="2">Comminuted fracture</button>
+        </div>
+
+        <div class="main-content">
+            <div class="instruction-text">
+                우클릭: 이미지 확대/축소 &nbsp;|&nbsp; 드래그: 바운딩 박스 그리기
+            </div>
+
+            <div class="image-container">
+                <div class="image-wrapper" style="position: relative; display: inline-block;">
+                    <img id="xrayImage" src="{{ url_for('static', filename=image_path) }}?v={{ range(1000, 9999) | random }}" style="display: block; max-width: 100%;">
+                    <canvas id="imageCanvas"></canvas>
+                </div>
+                <div class="debug-info">
+                    <p>원본 크기: {{ debug_info.original_size }}</p>
+                    <p>화면 크기: <span id="displaySize">계산 중...</span></p>
+                    <p>종횡비: {{ debug_info.aspect_ratio }}</p>
+                    <p>스케일 비율: <span id="scaleRatio">계산 중...</span></p>
+                </div>
             </div>
         </div>
     </div>
@@ -79,6 +120,9 @@
         const imageName = "{{ image_name }}";
         let bboxes = JSON.parse('{{ bboxes|safe }}');
         
+        console.log("이미지 경로:", imagePath);
+        console.log("이미지 이름:", imageName);
+        
         // 색상 맵
         const colorMap = {
             0: 'green',  // Ambiguous fracture
@@ -86,291 +130,299 @@
             2: 'red'     // Comminuted fracture
         };
         
-        // 캔버스 및 컨텍스트
+        // 이미지 및 캔버스 요소
+        const xrayImage = document.getElementById('xrayImage');
         const canvas = document.getElementById('imageCanvas');
         const ctx = canvas.getContext('2d');
         
-        // 이미지 객체
-        const img = new Image();
-        img.src = imagePath + '?v=' + new Date().getTime(); // 캐시 방지
+        // 초기 상태를 축소 모드로 설정
+        xrayImage.style.maxWidth = '500px';
         
         // 드로잉 상태 변수
         let isDrawing = false;
         let startX = 0;
         let startY = 0;
         let currentBbox = null;
+        let lastDrawnBbox = null;
         
-        // 이미지 로드 시 캔버스 설정
-        img.onload = function() {
-            console.log("이미지 로드됨, 크기:", img.width, "x", img.height);
-            canvas.width = img.width;
-            canvas.height = img.height;
-            redrawCanvas();
+        // 이미지 크기와 실제 캔버스 크기의 비율
+        let scaleX = 1;
+        let scaleY = 1;
+        
+        // 이미지 확대/축소 관련 변수
+        let scale = 1; // 초기 상태는 축소 모드 (1)
+        let clickStartTime = 0;
+        const CLICK_DURATION = 200; // 클릭으로 인정할 최대 시간 (ms)
+        
+        // 이미지 로드 이벤트
+        xrayImage.onload = function() {
+            console.log("이미지 로드 성공:", xrayImage.width, "x", xrayImage.height);
+            
+            // 캔버스 크기를 이미지와 동일하게 설정
+            canvas.width = xrayImage.naturalWidth;
+            canvas.height = xrayImage.naturalHeight;
+            canvas.style.width = xrayImage.clientWidth + 'px';
+            canvas.style.height = xrayImage.clientHeight + 'px';
+            
+            // 캔버스에 바운딩 박스 그리기
+            updateScaleRatio();
+            drawBoundingBoxes();
+            updateDebugInfo();
         };
         
-        // 캔버스 다시 그리기
-        function redrawCanvas() {
-            console.log("캔버스 다시 그리기");
+        xrayImage.onerror = function(e) {
+            console.error("이미지 로드 실패:", e);
+            alert("이미지를 로드할 수 없습니다: " + imagePath);
+        };
+        
+        // 윈도우 리사이즈 시 이벤트 처리
+        window.addEventListener('resize', function() {
+            canvas.style.width = xrayImage.clientWidth + 'px';
+            canvas.style.height = xrayImage.clientHeight + 'px';
+            updateScaleRatio();
+            drawBoundingBoxes();
+            updateDebugInfo();
+        });
+        
+        // 디버깅 정보 업데이트
+        function updateDebugInfo() {
+            document.getElementById('displaySize').textContent = `${xrayImage.clientWidth}x${xrayImage.clientHeight}`;
+            document.getElementById('scaleRatio').textContent = `X: ${scaleX.toFixed(3)}, Y: ${scaleY.toFixed(3)}`;
+        }
+        
+        // 스케일 비율 업데이트
+        function updateScaleRatio() {
+            scaleX = canvas.width / xrayImage.clientWidth;
+            scaleY = canvas.height / xrayImage.clientHeight;
+            console.log("스케일 비율 업데이트:", scaleX, scaleY);
+        }
+        
+        // 바운딩 박스만 그리는 함수
+        function drawBoundingBoxes() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
             
             // 저장된 바운딩 박스 그리기
             bboxes.forEach(bbox => {
                 const [x, y, width, height, classId] = bbox;
-                ctx.strokeStyle = colorMap[classId];
+                ctx.strokeStyle = colorMap[classId] || 'yellow';
                 ctx.lineWidth = 2;
                 ctx.strokeRect(x, y, width, height);
             });
             
-            // 현재 그리고 있는 바운딩 박스
+            // 현재 그리고 있는 바운딩 박스 그리기
             if (currentBbox !== null) {
-                console.log("현재 박스:", currentBbox);
-                const [x, y, width, height] = currentBbox;
-                ctx.strokeStyle = 'yellow';
+                const [startX, startY, width, height] = currentBbox;
+                ctx.strokeStyle = 'yellow'; // 항상 노란색으로 그림
+                ctx.lineWidth = 2;
+                ctx.strokeRect(startX, startY, width, height);
+            }
+            
+            // 마지막으로 그린 바운딩 박스 (클래스 선택 대기 중)
+            if (lastDrawnBbox !== null && !bboxes.includes(lastDrawnBbox)) {
+                const [x, y, width, height] = lastDrawnBbox;
+                ctx.strokeStyle = 'yellow'; // 항상 노란색으로 그림
                 ctx.lineWidth = 2;
                 ctx.strokeRect(x, y, width, height);
             }
         }
         
-        // 마우스 이벤트 - 드래그 시작
-        canvas.addEventListener('mousedown', function(e) {
-            console.log("마우스 다운 이벤트");
+        // 화면 좌표를 캔버스 좌표로 변환
+        function convertCoordinates(clientX, clientY) {
             const rect = canvas.getBoundingClientRect();
-            startX = e.clientX - rect.left;
-            startY = e.clientY - rect.top;
+            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
             
-            // 새 바운딩 박스 시작
-            currentBbox = [startX, startY, 0, 0];
+            // 스크롤 위치를 고려한 실제 좌표 계산
+            const displayX = clientX - rect.left - scrollLeft;
+            const displayY = clientY - rect.top - scrollTop;
+            
+            // 좌표 변환
+            const canvasX = displayX * scaleX;
+            const canvasY = displayY * scaleY;
+            
+            return { x: Math.round(canvasX), y: Math.round(canvasY) };
+        }
+        
+        // 마우스 이벤트 처리
+        canvas.addEventListener('mousedown', function(e) {
+            if (e.button === 2) {  // 오른쪽 버튼
+                e.preventDefault();
+                clickStartTime = Date.now();
+                return;
+            }
+            
+            const coords = convertCoordinates(e.clientX, e.clientY);
+            startX = coords.x;
+            startY = coords.y;
             isDrawing = true;
-            
-            // 디버깅 출력
-            console.log("시작 좌표:", startX, startY);
-            
-            // 기본 동작 방지
-            e.preventDefault();
+            console.log("마우스 다운:", startX, startY);
         });
         
-        // 마우스 이벤트 - 드래그 중
         canvas.addEventListener('mousemove', function(e) {
             if (!isDrawing) return;
             
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            const coords = convertCoordinates(e.clientX, e.clientY);
+            const width = coords.x - startX;
+            const height = coords.y - startY;
             
-            // 너비와 높이 업데이트 (드래그 중)
-            let width = mouseX - startX;
-            let height = mouseY - startY;
-            
-            // 현재 드래그하는 동안에는 시작점 고정, 너비/높이만 변경
             currentBbox = [startX, startY, width, height];
-            
-            // 디버깅 출력
-            console.log("드래그 중:", width, height);
-            
-            // 캔버스 다시 그리기
-            redrawCanvas();
-            
-            // 기본 동작 방지
-            e.preventDefault();
+            drawBoundingBoxes();
         });
         
-        // 마우스 이벤트 - 드래그 종료
         canvas.addEventListener('mouseup', function(e) {
+            if (e.button === 2) {  // 오른쪽 버튼
+                e.preventDefault();
+                const clickDuration = Date.now() - clickStartTime;
+                if (clickDuration < CLICK_DURATION) {
+                    // 확대/축소 토글
+                    scale = scale === 1 ? 2 : 1;
+                    if (scale === 2) {
+                        xrayImage.style.maxWidth = '100%';
+                    } else {
+                        xrayImage.style.maxWidth = '500px';
+                    }
+                    canvas.style.width = xrayImage.clientWidth + 'px';
+                    canvas.style.height = xrayImage.clientHeight + 'px';
+                    updateScaleRatio();
+                    drawBoundingBoxes();
+                    updateDebugInfo();
+                    console.log("확대/축소 변경:", scale);
+                }
+                return;
+            }
+            
             if (!isDrawing) return;
             
-            console.log("마우스 업 이벤트");
-            
-            // 드래그 상태 종료
             isDrawing = false;
-            
-            // 최종 바운딩 박스 계산
-            let [x, y, width, height] = currentBbox;
-            
-            // 음수 너비/높이 처리
-            if (width < 0) {
-                x = startX + width;
-                width = Math.abs(width);
+            if (currentBbox) {
+                const [x, y, width, height] = currentBbox;
+                // 드래그 방향에 따라 음수 값을 양수로 조정
+                if (width < 0 || height < 0) {
+                    const newX = width < 0 ? startX + width : startX;
+                    const newY = height < 0 ? startY + height : startY;
+                    const newWidth = Math.abs(width);
+                    const newHeight = Math.abs(height);
+                    
+                    currentBbox = [newX, newY, newWidth, newHeight];
+                }
+                
+                // 최소 크기 확인
+                const [bx, by, finalWidth, finalHeight] = currentBbox;
+                if (finalWidth > 5 && finalHeight > 5) {
+                    // 바운딩 박스를 그린 후 클래스 선택 대기
+                    lastDrawnBbox = currentBbox;
+                    currentBbox = null;
+                    drawBoundingBoxes();
+                } else {
+                    currentBbox = null;
+                    lastDrawnBbox = null;
+                    drawBoundingBoxes();
+                }
             }
-            
-            if (height < 0) {
-                y = startY + height;
-                height = Math.abs(height);
-            }
-            
-            // 최종 바운딩 박스 업데이트
-            currentBbox = [x, y, width, height];
-            
-            // 너무 작은 박스는 무시
-            if (width < 5 || height < 5) {
-                console.log("박스가 너무 작아 무시됨");
-                currentBbox = null;
-                redrawCanvas();
-                return;
-            }
-            
-            // 디버깅 출력
-            console.log("최종 박스:", currentBbox);
-            
-            // 골절 타입 버튼 활성화
-            $('.fracture-btn').prop('disabled', false);
-            
-            // 캔버스 다시 그리기
-            redrawCanvas();
-            
-            // 기본 동작 방지
+        });
+        
+        // 우클릭 메뉴 방지
+        canvas.addEventListener('contextmenu', function(e) {
             e.preventDefault();
         });
         
-        // 마우스가 캔버스를 벗어날 경우
-        canvas.addEventListener('mouseleave', function(e) {
-            if (isDrawing) {
-                console.log("마우스가 캔버스를 벗어남");
-                // 드래깅 중에 캔버스를 벗어나면 드래그 종료
-                isDrawing = false;
+        // 골절 유형 버튼 처리
+        document.querySelectorAll('.fracture-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // 기존 선택 해제
+                document.querySelectorAll('.fracture-btn').forEach(b => b.classList.remove('selected'));
+                // 현재 버튼 선택
+                this.classList.add('selected');
                 
-                // 최종 바운딩 박스 계산
-                let [x, y, width, height] = currentBbox;
-                
-                // 음수 너비/높이 처리
-                if (width < 0) {
-                    x = startX + width;
-                    width = Math.abs(width);
-                }
-                
-                if (height < 0) {
-                    y = startY + height;
-                    height = Math.abs(height);
-                }
-                
-                currentBbox = [x, y, width, height];
-                
-                // 너무 작은 박스는 무시
-                if (width < 5 || height < 5) {
-                    currentBbox = null;
-                }
-                
-                redrawCanvas();
-            }
-        });
-        
-        // 취소 버튼
-        $('#cancelDrawing').click(function() {
-            console.log("취소 버튼 클릭");
-            isDrawing = false;
-            currentBbox = null;
-            $('.fracture-btn').prop('disabled', false);
-            redrawCanvas();
-        });
-        
-        // 이전 바운딩 박스 삭제 버튼
-        $('#deleteLastBbox').click(function() {
-            console.log("이전 바운딩 박스 삭제 버튼 클릭");
-            if (bboxes.length > 0) {
-                // 서버에 삭제 요청
-                $.ajax({
-                    url: '/delete_last_bbox',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        image_name: imageName
-                    }),
-                    success: function(response) {
-                        console.log("마지막 바운딩 박스 삭제 성공");
-                        // 로컬 데이터에서 마지막 바운딩 박스 제거
-                        bboxes.pop();
-                        redrawCanvas();
-                    },
-                    error: function(err) {
-                        console.error("삭제 실패:", err);
-                        alert("바운딩 박스 삭제에 실패했습니다.");
-                    }
-                });
-            } else {
-                alert("삭제할 바운딩 박스가 없습니다.");
-            }
-        });
-        
-        // 모든 바운딩 박스 삭제 버튼
-        $('#deleteAllBboxes').click(function() {
-            console.log("모든 바운딩 박스 삭제 버튼 클릭");
-            if (bboxes.length > 0) {
-                if (confirm("현재 이미지의 모든 바운딩 박스를 삭제하시겠습니까?")) {
-                    // 서버에 삭제 요청
-                    $.ajax({
-                        url: '/delete_all_bboxes',
-                        type: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({
-                            image_name: imageName
-                        }),
-                        success: function(response) {
-                            console.log("모든 바운딩 박스 삭제 성공");
-                            // 로컬 데이터에서 모든 바운딩 박스 제거
-                            bboxes = [];
-                            redrawCanvas();
-                        },
-                        error: function(err) {
-                            console.error("삭제 실패:", err);
-                            alert("바운딩 박스 삭제에 실패했습니다.");
+                // No Fracture 버튼인 경우 특별 처리
+                if (this.id === 'noFracture') {
+                    if (bboxes.length > 0 || lastDrawnBbox !== null) {
+                        if (confirm("이미 바운딩 박스가 있습니다. No Fracture로 표시하면 모든 바운딩 박스가 삭제됩니다. 계속하시겠습니까?")) {
+                            markAsNoFracture();
                         }
-                    });
+                    } else {
+                        markAsNoFracture();
+                    }
+                    return;
                 }
-            } else {
-                alert("삭제할 바운딩 박스가 없습니다.");
-            }
+                
+                // 마지막으로 그린 바운딩 박스가 있으면 클래스 부여하고 저장
+                if (lastDrawnBbox !== null) {
+                    const classId = parseInt(this.dataset.class);
+                    const finalBbox = [...lastDrawnBbox, classId]; // 클래스 ID 추가
+                    saveBoundingBox(finalBbox);
+                    lastDrawnBbox = null;
+                }
+            });
         });
         
-        // 골절 유형 버튼 클릭 이벤트
-        $('.fracture-btn').click(function() {
-            if (!currentBbox || currentBbox[2] === 0 || currentBbox[3] === 0) {
-                alert('먼저 바운딩 박스를 그려주세요.');
+        // 삭제 기능
+        function deleteLastBBox() {
+            if (lastDrawnBbox !== null) {
+                // 아직 저장되지 않은 바운딩 박스가 있으면 먼저 그것을 삭제
+                lastDrawnBbox = null;
+                drawBoundingBoxes();
                 return;
             }
             
-            const classId = parseInt($(this).data('class'));
-            console.log("골절 유형 선택:", classId);
-            
-            // 바운딩 박스 정보와 클래스 ID 저장
-            const bbox = [...currentBbox, classId];
-            
-            // 서버에 저장 요청
-            $.ajax({
-                url: '/save_bbox',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    image_name: imageName,
-                    bbox: bbox
-                }),
-                success: function(response) {
-                    console.log("바운딩 박스 저장 성공");
-                    // 로컬 데이터 업데이트
-                    bboxes.push(bbox);
-                    
-                    // 상태 초기화
-                    currentBbox = null;
-                    
-                    // 캔버스 다시 그리기
-                    redrawCanvas();
-                },
-                error: function(err) {
-                    console.error("저장 실패:", err);
-                    alert("바운딩 박스 저장에 실패했습니다.");
-                }
-            });
-        });
+            if (bboxes.length > 0) {
+                fetch('/delete_last_bbox', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image_name: imageName
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        bboxes.pop(); // 메모리에서도 삭제
+                        drawBoundingBoxes();
+                    } else {
+                        alert('마지막 바운딩 박스 삭제 실패: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('바운딩 박스 삭제 중 오류가 발생했습니다.');
+                });
+            }
+        }
         
-        // 타이머 업데이트
-        setInterval(function() {
-            $.ajax({
-                url: '/get_timer',
-                type: 'GET',
-                success: function(response) {
-                    $('#timer').text(response.timer);
-                }
-            });
-        }, 1000);
+        function deleteAllBBoxes() {
+            if (lastDrawnBbox !== null) {
+                // 아직 저장되지 않은 바운딩 박스가 있으면 먼저 그것을 삭제
+                lastDrawnBbox = null;
+                drawBoundingBoxes();
+            }
+            
+            if (bboxes.length > 0) {
+                fetch('/delete_all_bboxes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image_name: imageName
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        bboxes = []; // 메모리에서 모두 삭제
+                        drawBoundingBoxes();
+                    } else {
+                        alert('모든 바운딩 박스 삭제 실패: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('모든 바운딩 박스 삭제 중 오류가 발생했습니다.');
+                });
+            }
+        }
         
         // 디버깅 정보
         console.log("스크립트 로드 완료");
@@ -378,12 +430,91 @@
         // JSON 형식의 라벨링 상태를 파싱
         const bboxesStatus = {};
         {% for img in image_list %}
-            {% if img in app_state.bboxes and app_state.bboxes[img]|length > 0 %}
+            {% if img in bboxes_status and bboxes_status[img] %}
                 bboxesStatus["{{ img }}"] = true;
             {% else %}
                 bboxesStatus["{{ img }}"] = false;
             {% endif %}
         {% endfor %}
+
+        function saveBoundingBox(bbox) {
+            fetch('/save_bbox', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    image_name: imageName,
+                    bbox: bbox
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'error') {
+                    alert('바운딩 박스 저장 실패: ' + data.message);
+                    if (data.message === 'User ID is not selected') {
+                        window.location.href = '/';  // ID 선택 페이지로 리다이렉트
+                    }
+                } else {
+                    console.log("바운딩 박스 저장 성공");
+                    // 로컬 데이터 업데이트
+                    bboxes.push(bbox);
+                    // 상태 초기화
+                    currentBbox = null;
+                    // 캔버스 다시 그리기
+                    drawBoundingBoxes();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('바운딩 박스 저장 중 오류가 발생했습니다.');
+            });
+        }
+        
+        // No Fracture 처리
+        function markAsNoFracture() {
+            fetch('/mark_no_fracture', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    image_name: imageName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'error') {
+                    alert('No Fracture 표시 실패: ' + data.message);
+                    if (data.message === 'User ID is not selected') {
+                        window.location.href = '/';  // ID 선택 페이지로 리다이렉트
+                    }
+                } else {
+                    console.log("No Fracture 표시 성공:", data.message);
+                    // 바운딩 박스 초기화
+                    bboxes = [];
+                    lastDrawnBbox = null;
+                    // 캔버스 다시 그리기
+                    drawBoundingBoxes();
+                    // 이미지 라벨링 상태 업데이트
+                    bboxesStatus[imageName] = true;
+                    // 사이드바의 이미지 목록에 체크 표시 추가
+                    const currentImgItem = document.querySelector(`.image-item.active`);
+                    if (currentImgItem && !currentImgItem.querySelector('.labeled-marker')) {
+                        const marker = document.createElement('span');
+                        marker.className = 'labeled-marker';
+                        marker.textContent = '✓';
+                        currentImgItem.appendChild(marker);
+                    }
+                    // 진행 상태 업데이트를 위해 잠시 후 페이지 새로고침
+                    setTimeout(() => window.location.reload(), 500);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('No Fracture 표시 중 오류가 발생했습니다.');
+            });
+        }
     </script>
 </body>
 </html> 
