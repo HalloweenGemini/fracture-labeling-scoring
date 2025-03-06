@@ -184,7 +184,8 @@ def main_app():
     for img_name in app_state.id_image_orders[app_state.selected_id]:
         label_name = pathlib.Path(img_name).stem + '.txt'
         label_path = get_labels_path(app_state.selected_id) / label_name
-        bboxes_status[img_name] = label_path.exists() and label_path.stat().st_size > 0
+        # 파일이 존재하기만 하면 라벨링된 것으로 인식 (크기 상관없음)
+        bboxes_status[img_name] = label_path.exists()
     
     # 타이머 값 가져오기
     timer = app_state.timer.get_elapsed_time()

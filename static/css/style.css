@@ -219,6 +219,14 @@ canvas {
     background-color: var(--gray-100);
 }
 
+.image-item.unlabeled:not(.active) {
+    background-color: rgba(255, 0, 0, 0.2);  /* 빨간색 배경, 투명도 20% */
+}
+
+.image-item.unlabeled:hover:not(.active) {
+    background-color: rgba(255, 0, 0, 0.3);  /* 호버 시 더 진한 빨간색 */
+}
+
 .navigation-buttons {
     display: flex;
     justify-content: space-between;

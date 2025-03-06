@@ -73,7 +73,7 @@
             <h3>이미지 목록</h3>
             <div class="image-list">
                 {% for img in image_list %}
-                <div class="image-item {% if loop.index0 == current_idx %}active{% endif %}" 
+                <div class="image-item {% if loop.index0 == current_idx %}active{% endif %} {% if not bboxes_status[img] %}unlabeled{% endif %}" 
                      onclick="window.location.href='/select_image/{{ loop.index0 }}'">
                     {{ img }}
                     {% if bboxes_status[img] %}
