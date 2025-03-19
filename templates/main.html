@@ -64,10 +64,10 @@
             </div>
 
             <div class="fracture-buttons">
-                <button id="noFracture" class="fracture-btn no-fracture" data-class="none">No Fracture</button>
-                <button id="ambiguous" class="fracture-btn" data-class="0">Ambiguous Fracture</button>
-                <button id="simple" class="fracture-btn" data-class="1">Simple Fracture</button>
-                <button id="comminuted" class="fracture-btn" data-class="2">Comminuted Fracture</button>
+                <button id="noFracture" class="fracture-btn no-fracture" data-class="none">No Fracture (Q)</button>
+                <button id="ambiguous" class="fracture-btn" data-class="0">Ambiguous Fracture (W)</button>
+                <button id="simple" class="fracture-btn" data-class="1">Simple Fracture (E)</button>
+                <button id="comminuted" class="fracture-btn" data-class="2">Comminuted Fracture (R)</button>
             </div>
 
             <h3>이미지 목록</h3>
@@ -96,7 +96,7 @@
 
         <div class="main-content">
             <div class="instruction-text">
-                우클릭: 이미지 확대/축소 &nbsp;|&nbsp; 드래그: 바운딩 박스 그리기
+                우클릭: 이미지 확대/축소 &nbsp;|&nbsp; 드래그: 바운딩 박스 그리기 &nbsp;|&nbsp; 화살표 ← →: 이전/다음 이미지 &nbsp;|&nbsp; Q,W,E,R: 골절 유형 선택
             </div>
 
             <div class="image-container">
@@ -515,6 +515,46 @@
                 alert('No Fracture 표시 중 오류가 발생했습니다.');
             });
         }
+    </script>
+    
+    <!-- 키보드 단축키 스크립트 추가 -->
+    <script>
+        // 키보드 이벤트 리스너 추가
+        document.addEventListener('keydown', function(e) {
+            // 텍스트 입력 필드에 포커스가 있는 경우 단축키 무시
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            // 왼쪽/오른쪽 화살표 키 처리
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                window.location.href = '/prev_image';
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                window.location.href = '/next_image';
+            }
+            
+            // 골절 유형 단축키 처리
+            switch(e.key.toLowerCase()) {
+                case 'q': // No Fracture
+                    e.preventDefault();
+                    document.getElementById('noFracture').click();
+                    break;
+                case 'w': // Ambiguous Fracture
+                    e.preventDefault();
+                    document.getElementById('ambiguous').click();
+                    break;
+                case 'e': // Simple Fracture
+                    e.preventDefault();
+                    document.getElementById('simple').click();
+                    break;
+                case 'r': // Comminuted Fracture
+                    e.preventDefault();
+                    document.getElementById('comminuted').click();
+                    break;
+            }
+        });
     </script>
 </body>
 </html> 
